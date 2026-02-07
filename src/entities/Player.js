@@ -139,9 +139,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     handleShooting(time) {
         // Adjust fire rate based on power-up
-        const currentFireRate = this.activePowerUp === POWERUP_TYPES.RAPID_FIRE
-            ? this.fireRate / 2
-            : this.fireRate;
+        let currentFireRate = this.fireRate;
+        if (this.activePowerUp === POWERUP_TYPES.RAPID_FIRE) {
+            currentFireRate = this.fireRate / 2;
+        } else if (this.activePowerUp === POWERUP_TYPES.OVERCLOCK) {
+            currentFireRate = this.fireRate / 3;
+        }
 
         // Check if spacebar is pressed and enough time has passed
         if (this.spaceBar.isDown && time > this.lastFired) {
@@ -192,6 +195,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
             bulletBack.setVelocityY(400);
             bulletBack.setFlipY(true);
             this.bullets.add(bulletBack);
+        } else if (this.activePowerUp === POWERUP_TYPES.OVERCLOCK) {
+            // Overclock: normal bullet with double damage and orange tint
+            const bullet = new Bullet(this.scene, this.x, this.y - 20);
+            bullet.damage = 2;
+            bullet.setTint(0xff8800);
+            this.bullets.add(bullet);
         } else {
             // Normal single bullet
             const bullet = new Bullet(this.scene, this.x, this.y - 20);
@@ -277,6 +286,24 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
                 this.createShieldGraphic();
             }
 
+            if (type === POWERUP_TYPES.OVERCLOCK) {
+                // Disable shield while overclocked
+                this.hasShield = false;
+                // Grow hitbox 30%
+                this.setScale(PLAYER_SCALE * 1.3);
+                // Reddish-orange tint
+                this.setTint(0xff6622);
+                // Pulsing scale to communicate "you're bigger"
+                this.overclockPulseTween = this.scene.tweens.add({
+                    targets: this,
+                    scale: { from: PLAYER_SCALE * 1.3, to: PLAYER_SCALE * 1.4 },
+                    duration: 400,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+
             // Set timer to clear power-up
             if (this.scene.time) {
                 this.powerUpTimer = this.scene.time.delayedCall(POWERUP_DURATION, () => {
@@ -298,6 +325,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     clearPowerUp() {
         this.activePowerUp = null;
         this.hasShield = false;
+
+        // Restore normal scale and clear tint (overclock cleanup)
+        this.setScale(PLAYER_SCALE);
+        this.clearTint();
+        if (this.overclockPulseTween) {
+            this.overclockPulseTween.stop();
+            this.overclockPulseTween = null;
+        }
 
         // Stop any ongoing flash effect
         if (this.flashTween) {

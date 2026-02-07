@@ -30,6 +30,10 @@ export default class PowerUp extends Phaser.Physics.Arcade.Sprite {
                 spriteKey = 'powerup-backshoot';
                 tintColor = 0xffaa00;  // Orange
                 break;
+            case POWERUP_TYPES.OVERCLOCK:
+                spriteKey = 'powerup-overclock';
+                tintColor = 0xff4444;  // Red
+                break;
             default:
                 spriteKey = 'powerup1';
                 tintColor = 0x00ffff;

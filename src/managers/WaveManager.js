@@ -155,17 +155,33 @@ export default class WaveManager {
             return this.scaleDifficulty(ENEMY_TYPES.SMALL);
         }
 
-        // Wave 3-5: Small and medium
-        if (this.currentWave <= 5) {
+        // Wave 3: Small and medium (no sentinels yet)
+        if (this.currentWave <= 3) {
             const rand = Math.random();
             const base = rand < 0.6 ? ENEMY_TYPES.SMALL : ENEMY_TYPES.MEDIUM;
             return this.scaleDifficulty(base);
         }
 
-        // Wave 6+: All types with increasing large enemy chance
+        // Wave 4-5: 10% Sentinel, 50% Small, 40% Medium
+        if (this.currentWave <= 5) {
+            const rand = Math.random();
+            let base;
+            if (rand < 0.10) {
+                base = ENEMY_TYPES.SENTINEL;
+            } else if (rand < 0.60) {
+                base = ENEMY_TYPES.SMALL;
+            } else {
+                base = ENEMY_TYPES.MEDIUM;
+            }
+            return this.scaleDifficulty(base);
+        }
+
+        // Wave 6+: 15% Sentinel, 30% Small, 30% Medium, 25% Large
         const rand = Math.random();
         let base;
-        if (rand < 0.4) {
+        if (rand < 0.15) {
+            base = ENEMY_TYPES.SENTINEL;
+        } else if (rand < 0.45) {
             base = ENEMY_TYPES.SMALL;
         } else if (rand < 0.75) {
             base = ENEMY_TYPES.MEDIUM;
@@ -192,6 +208,13 @@ export default class WaveManager {
             speed: Math.round(baseType.speed * speedMult),
             shootChance: Math.min(baseType.shootChance + shootBonus, 0.95)
         };
+    }
+
+    getEnemySpawnInterval() {
+        return Math.max(
+            WAVE_CONFIG.baseSpawnInterval - (this.currentWave - 1) * WAVE_CONFIG.spawnIntervalDecrement,
+            WAVE_CONFIG.minSpawnInterval
+        );
     }
 
     getObstacleSpawnInterval() {

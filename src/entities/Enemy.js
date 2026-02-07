@@ -1,4 +1,5 @@
 import EnemyBullet from './EnemyBullet.js';
+import { GAME_WIDTH, ENEMY_BULLET_SPEED } from '../utils/constants.js';
 
 export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y, enemyType) {
@@ -30,6 +31,9 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
             case 'enemy-large':
                 tintColor = 0xff8888;  // Stronger red
                 break;
+            case 'enemy-sentinel':
+                tintColor = 0x88ffff;  // Cyan
+                break;
             default:
                 tintColor = 0xffffff;
         }
@@ -45,8 +49,20 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.lastShot = 0;
         this.shootCooldown = 2000; // 2 seconds between shots
 
+        // Sentinel-specific initialization
+        if (this.movementPattern === 'strafe') {
+            // Determine initial direction based on spawn side
+            this.strafeDirection = (x < GAME_WIDTH / 2) ? 1 : -1;
+            this.shootCooldown = 1500;
+            this.strafeStepTimer = 0;
+        }
+
         // Set initial velocity
-        this.setVelocityY(this.baseSpeed);
+        if (this.movementPattern === 'strafe') {
+            this.setVelocity(this.baseSpeed * this.strafeDirection, 15);
+        } else {
+            this.setVelocityY(this.baseSpeed);
+        }
 
         // Enable collision
         this.setCollideWorldBounds(false);
@@ -96,6 +112,9 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
                         break;
                     case 'enemy-large':
                         tintColor = 0xff8888;
+                        break;
+                    case 'enemy-sentinel':
+                        tintColor = 0x88ffff;
                         break;
                     default:
                         tintColor = 0xffffff;
@@ -202,10 +221,31 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     shoot(time) {
         if (time - this.lastShot < this.shootCooldown) return;
 
+        // Bullet tint per enemy type
+        let bulletTint = 0xff4444; // default red for small/medium
+        if (this.enemyType.key === 'enemy-large') {
+            bulletTint = 0xff8800; // orange for large
+        } else if (this.enemyType.key === 'enemy-sentinel') {
+            bulletTint = 0x00ffff; // cyan for sentinel
+        }
+
         // Check if should shoot based on chance
         if (Math.random() < this.shootChance) {
-            const bullet = new EnemyBullet(this.scene, this.x, this.y + 20);
-            this.scene.enemyBullets.add(bullet);
+            if (this.movementPattern === 'strafe' && this.scene.player && this.scene.player.isAlive) {
+                // Sentinel: aimed shot toward player
+                const angle = Phaser.Math.Angle.Between(
+                    this.x, this.y,
+                    this.scene.player.x, this.scene.player.y
+                );
+                const vx = Math.cos(angle) * ENEMY_BULLET_SPEED;
+                const vy = Math.sin(angle) * ENEMY_BULLET_SPEED;
+                const bullet = new EnemyBullet(this.scene, this.x, this.y + 20, vx, vy, bulletTint);
+                this.scene.enemyBullets.add(bullet);
+            } else {
+                // Normal: straight-down shot
+                const bullet = new EnemyBullet(this.scene, this.x, this.y + 20, 0, ENEMY_BULLET_SPEED, bulletTint);
+                this.scene.enemyBullets.add(bullet);
+            }
             this.lastShot = time;
         }
     }
@@ -240,6 +280,27 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
                     // Reset to downward movement after dive
                     this.setVelocityY(this.baseSpeed);
                 }
+                break;
+
+            case 'strafe':
+                // Move horizontally, reverse at screen edges
+                if (this.x <= 20) {
+                    this.strafeDirection = 1;
+                } else if (this.x >= GAME_WIDTH - 20) {
+                    this.strafeDirection = -1;
+                }
+
+                this.setVelocityX(this.baseSpeed * this.strafeDirection);
+
+                // Step down every ~2 seconds
+                this.strafeStepTimer += delta;
+                if (this.strafeStepTimer > 2000) {
+                    this.y += 30;
+                    this.strafeStepTimer = 0;
+                }
+
+                // Slow constant downward drift
+                this.setVelocityY(15);
                 break;
         }
     }

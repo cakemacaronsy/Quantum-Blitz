@@ -11,6 +11,9 @@ export default class Bullet extends Phaser.Physics.Arcade.Sprite {
         // Set scale
         this.setScale(BULLET_SCALE);
 
+        // Damage per hit (default 1, overclock sets to 2)
+        this.damage = 1;
+
         // Set velocity (move upward)
         this.setVelocityY(-BULLET_SPEED);
     }

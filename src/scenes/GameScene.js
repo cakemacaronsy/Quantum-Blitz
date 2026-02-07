@@ -35,6 +35,9 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('enemy-medium', 'assets/enemies/enemy-medium1.png');
         this.load.image('enemy-large', 'assets/enemies/enemy-big1.png');
 
+        // Load sentinel asset
+        this.load.image('enemy-sentinel', 'assets/enemies/boss/Sentinel.png');
+
         // Load boss asset
         this.load.image('boss-steel-eagle', 'assets/enemies/boss/steel-eagle.png');
 
@@ -164,8 +167,7 @@ export default class GameScene extends Phaser.Scene {
 
         // Setup spawning
         this.lastEnemySpawn = 0;
-        this.enemySpawnInterval = 600; // Faster spawning within waves
-        this.initialSpawnDelay = 1000; // 1 second delay before first spawn
+        this.initialSpawnDelay = 2000; // 2 second delay before first spawn (let wave title show)
         this.gameStartTime = 0;
 
         // Setup collisions
@@ -424,6 +426,8 @@ export default class GameScene extends Phaser.Scene {
         try {
             if (!bullet.active || !enemy.active) return;
 
+            const damage = bullet.damage || 1;
+
             // Destroy bullet
             bullet.destroy();
 
@@ -434,7 +438,7 @@ export default class GameScene extends Phaser.Scene {
 
             // Damage enemy
             if (enemy.takeDamage) {
-                enemy.takeDamage(1);
+                enemy.takeDamage(damage);
             }
         } catch (error) {
             console.error('Error in bulletHitEnemy:', error);
@@ -445,6 +449,8 @@ export default class GameScene extends Phaser.Scene {
         try {
             if (!bullet.active || !boss.active) return;
 
+            const damage = bullet.damage || 1;
+
             bullet.destroy();
 
             if (this.hitSound) {
@@ -452,7 +458,7 @@ export default class GameScene extends Phaser.Scene {
             }
 
             if (boss.takeDamage) {
-                boss.takeDamage(1);
+                boss.takeDamage(damage);
             }
         } catch (error) {
             console.error('Error in bulletHitBoss:', error);
@@ -503,16 +509,60 @@ export default class GameScene extends Phaser.Scene {
         try {
             if (!player.active || !powerUp.active) return;
 
+            const pickupX = powerUp.x;
+            const pickupY = powerUp.y;
+            const tintColor = powerUp.tintColor || 0x00ffff;
+
             // Award score
             this.scoreManager.addScore(POWERUP_SCORE);
 
             // Activate power-up
-            if (player.activatePowerUp && powerUp.getType) {
-                player.activatePowerUp(powerUp.getType());
+            const powerUpType = powerUp.getType ? powerUp.getType() : null;
+            if (player.activatePowerUp && powerUpType) {
+                player.activatePowerUp(powerUpType);
             }
 
             // Destroy power-up
             powerUp.destroy();
+
+            // --- Pickup VFX ---
+
+            // 1. Expanding flash ring (color-matched)
+            const ring = this.add.circle(pickupX, pickupY, 10, tintColor, 0.6);
+            ring.setStrokeStyle(3, tintColor);
+            ring.setDepth(200);
+            this.tweens.add({
+                targets: ring,
+                scale: 4,
+                alpha: 0,
+                duration: 400,
+                ease: 'Power2',
+                onComplete: () => ring.destroy()
+            });
+
+            // 2. Floating power-up name text
+            const nameMap = {
+                [POWERUP_TYPES.SPREAD_SHOT]: '+SPREAD SHOT',
+                [POWERUP_TYPES.RAPID_FIRE]: '+RAPID FIRE',
+                [POWERUP_TYPES.SHIELD]: '+SHIELD',
+                [POWERUP_TYPES.HOMING_MISSILE]: '+HOMING MISSILE',
+                [POWERUP_TYPES.LASER_BEAM]: '+LASER BEAM',
+                [POWERUP_TYPES.BACK_SHOOTER]: '+BACK SHOOTER',
+                [POWERUP_TYPES.OVERCLOCK]: '+OVERCLOCK'
+            };
+            const displayName = nameMap[powerUpType] || '+POWER UP';
+            const nameColor = powerUpType === POWERUP_TYPES.OVERCLOCK ? '#ff4444' : '#00ffff';
+            this.showFloatingText(pickupX, pickupY, displayName, nameColor);
+
+            // 3. Brief white screen flash (50ms)
+            const flash = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 0.3);
+            flash.setDepth(300);
+            this.tweens.add({
+                targets: flash,
+                alpha: 0,
+                duration: 50,
+                onComplete: () => flash.destroy()
+            });
 
             // Update UI
             this.updateScoreDisplay();
@@ -524,9 +574,10 @@ export default class GameScene extends Phaser.Scene {
     bulletHitObstacle(bullet, obstacle) {
         try {
             if (!bullet.active || !obstacle.active) return;
+            const damage = bullet.damage || 1;
             bullet.destroy();
             if (obstacle.takeDamage) {
-                obstacle.takeDamage(1);
+                obstacle.takeDamage(damage);
             }
         } catch (error) {
             console.error('Error in bulletHitObstacle:', error);
@@ -562,7 +613,8 @@ export default class GameScene extends Phaser.Scene {
                 POWERUP_TYPES.SHIELD,
                 POWERUP_TYPES.HOMING_MISSILE,
                 POWERUP_TYPES.LASER_BEAM,
-                POWERUP_TYPES.BACK_SHOOTER
+                POWERUP_TYPES.BACK_SHOOTER,
+                POWERUP_TYPES.OVERCLOCK
             ];
             const type = Phaser.Utils.Array.GetRandom(types);
 
@@ -724,6 +776,17 @@ export default class GameScene extends Phaser.Scene {
                     case POWERUP_TYPES.BACK_SHOOTER:
                         powerUpName = 'BACK SHOOTER';
                         break;
+                    case POWERUP_TYPES.OVERCLOCK:
+                        powerUpName = 'OVERCLOCK';
+                        break;
+                }
+                // OVERCLOCK shows in red, all others in cyan
+                if (this.player.activePowerUp === POWERUP_TYPES.OVERCLOCK) {
+                    this.powerUpText.setFill('#ff4444');
+                    this.powerUpText.setShadow(0, 0, '#ff0000', 4, true, true);
+                } else {
+                    this.powerUpText.setFill('#00ffff');
+                    this.powerUpText.setShadow(0, 0, '#00ffff', 4, true, true);
                 }
                 this.powerUpText.setText(`⚡ ${powerUpName}`);
             } else {
@@ -735,14 +798,23 @@ export default class GameScene extends Phaser.Scene {
     }
 
     spawnEnemy() {
-        // Random X position
-        const x = Phaser.Math.Between(50, GAME_WIDTH - 50);
-
         // Get enemy type from wave manager
         const enemyType = this.waveManager.getEnemyTypeForWave();
 
-        // Spawn enemy at top of screen
-        const enemy = new Enemy(this, x, -50, enemyType);
+        let x, y;
+
+        if (enemyType.movementPattern === 'strafe') {
+            // Sentinels enter from left or right edge
+            const fromLeft = Math.random() < 0.5;
+            x = fromLeft ? -30 : GAME_WIDTH + 30;
+            y = Phaser.Math.Between(50, 200);
+        } else {
+            // Normal enemies spawn from top
+            x = Phaser.Math.Between(50, GAME_WIDTH - 50);
+            y = -50;
+        }
+
+        const enemy = new Enemy(this, x, y, enemyType);
         this.enemies.add(enemy);
 
         // Notify wave manager
@@ -919,8 +991,20 @@ export default class GameScene extends Phaser.Scene {
             this.explosionSound.play();
         }
 
-        // Switch back to gameplay music
-        this.switchToGameplayMusic();
+        // Stop all music before transitioning to victory
+        this.stopAllBGM();
+
+        // Transition to Victory scene after a brief delay for explosions to finish
+        this.time.delayedCall(2000, () => {
+            const score = this.scoreManager.getScore();
+            const highScore = this.scoreManager.getHighScore();
+            this.scene.start('VictoryScene', {
+                score: score,
+                wave: this.waveManager.currentWave,
+                highScore: highScore,
+                isNewHighScore: score >= highScore
+            });
+        });
     }
 
     showFloatingText(x, y, message, color = '#ffff00') {
@@ -1003,6 +1087,23 @@ export default class GameScene extends Phaser.Scene {
             g.destroy();
         }
 
+        // Overclock power-up: red circle with lightning bolt
+        if (!this.textures.exists('powerup-overclock')) {
+            const g = this.make.graphics({ x: 0, y: 0, add: false });
+            // Dark red background circle
+            g.fillStyle(0x661111);
+            g.fillCircle(16, 16, 14);
+            // Red border
+            g.lineStyle(2, 0xff4444, 1);
+            g.strokeCircle(16, 16, 14);
+            // Yellow lightning bolt
+            g.fillStyle(0xffff00);
+            g.fillTriangle(18, 4, 10, 16, 16, 16);
+            g.fillTriangle(14, 16, 22, 16, 14, 28);
+            g.generateTexture('powerup-overclock', 32, 32);
+            g.destroy();
+        }
+
         // Back shooter power-up: dark yellow bg, up-arrow + down-arrow
         if (!this.textures.exists('powerup-backshoot')) {
             const g = this.make.graphics({ x: 0, y: 0, add: false });
@@ -1071,7 +1172,7 @@ export default class GameScene extends Phaser.Scene {
                 time > this.lastEnemySpawn &&
                 time > this.gameStartTime + this.initialSpawnDelay) {
                 this.spawnEnemy();
-                this.lastEnemySpawn = time + this.enemySpawnInterval;
+                this.lastEnemySpawn = time + this.waveManager.getEnemySpawnInterval();
             }
 
             // Spawn obstacles based on wave difficulty (not during boss waves)

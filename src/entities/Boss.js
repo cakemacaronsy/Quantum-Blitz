@@ -276,13 +276,13 @@ export default class Boss extends Phaser.Physics.Arcade.Sprite {
     }
 
     shootSingle() {
-        const bullet = new EnemyBullet(this.scene, this.x, this.y + 40);
+        const bullet = new EnemyBullet(this.scene, this.x, this.y + 40, 0, undefined, 0xaa44ff);
         this.scene.enemyBullets.add(bullet);
     }
 
     shootSpread() {
         for (let angle = -30; angle <= 30; angle += 30) {
-            const bullet = new EnemyBullet(this.scene, this.x, this.y + 40);
+            const bullet = new EnemyBullet(this.scene, this.x, this.y + 40, 0, undefined, 0xaa44ff);
             const radians = Phaser.Math.DegToRad(90 + angle);
             const speed = 250;
             bullet.setVelocity(Math.cos(radians) * speed, Math.sin(radians) * speed);
@@ -293,7 +293,7 @@ export default class Boss extends Phaser.Physics.Arcade.Sprite {
     shootAggressive() {
         // 5-way spread
         for (let angle = -40; angle <= 40; angle += 20) {
-            const bullet = new EnemyBullet(this.scene, this.x, this.y + 40);
+            const bullet = new EnemyBullet(this.scene, this.x, this.y + 40, 0, undefined, 0xaa44ff);
             const radians = Phaser.Math.DegToRad(90 + angle);
             const speed = 280;
             bullet.setVelocity(Math.cos(radians) * speed, Math.sin(radians) * speed);

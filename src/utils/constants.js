@@ -37,6 +37,15 @@ export const ENEMY_TYPES = {
         score: 200,
         shootChance: 0.7, // Was 0.5
         movementPattern: 'dive'
+    },
+    SENTINEL: {
+        key: 'enemy-sentinel',
+        health: 3,
+        speed: 120,
+        scale: 1.0,
+        score: 150,
+        shootChance: 0.6,
+        movementPattern: 'strafe'
     }
 };
 
@@ -51,7 +60,8 @@ export const POWERUP_TYPES = {
     SHIELD: 'shield',
     HOMING_MISSILE: 'homing',
     LASER_BEAM: 'laser',
-    BACK_SHOOTER: 'backshoot'
+    BACK_SHOOTER: 'backshoot',
+    OVERCLOCK: 'overclock'
 };
 
 // Homing missile constants
@@ -69,11 +79,15 @@ export const POWERUP_SCORE = 25;
 
 // Wave system constants
 export const WAVE_CONFIG = {
-    startingEnemies: 5,
-    enemyIncreasePerWave: 2,
-    maxEnemiesPerWave: 20, // Was 15
-    delayBetweenWaves: 2000, // Was 3000
-    waveCompletionBonus: 100
+    startingEnemies: 8,
+    enemyIncreasePerWave: 3,
+    maxEnemiesPerWave: 25,
+    delayBetweenWaves: 3500,
+    waveCompletionBonus: 100,
+    // Dynamic spawn interval: starts slow, tightens each wave
+    baseSpawnInterval: 1400,      // Wave 1: relaxed 1.4s between spawns
+    spawnIntervalDecrement: 80,   // Each wave gets 80ms tighter
+    minSpawnInterval: 500         // Never faster than 0.5s
 };
 
 // Obstacle types
@@ -115,4 +129,15 @@ export const DIFFICULTY_SCALING = {
 export const PLAYER_SCALE = 1.8;
 export const BULLET_SCALE = 1.5;
 export const EXPLOSION_SCALE = 2.5;
-export const POWERUP_SCALE = 1.0;
+export const POWERUP_SCALE = 1.8;
+
+// Milestone 4: Feel + Readability
+export const FOCUS_SPEED_MULT = 0.4; // 40% speed while focused
+export const HITBOX_RADIUS = 3; // small visible core while focused
+
+// Bomb settings
+export const BOMB_STOCK = 3;
+export const BOMB_COOLDOWN_MS = 1200;
+export const BOMB_IFRAME_MS = 1200; // brief invulnerability
+export const BULLET_CANCEL_RADIUS = 180; // pixels
+export const CANCEL_BULLET_SCORE = 5; // points per cancelled bullet
